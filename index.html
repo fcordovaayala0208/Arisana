@@ -235,10 +235,10 @@
   }
   .vc-track-wrap{ overflow:hidden; }
   .vc-track{
-    display:flex; align-items:center;
-    transition:transform .5s cubic-bezier(.4,0,.2,1);
-    will-change:transform;
+    display:flex; justify-content:center; align-items:center;
+    transition:opacity .22s ease;
   }
+  .vc-track.vc-fade{ opacity:0; }
   .vc-slide{
     flex:0 0 auto;
     width:min(74vw, 300px);
@@ -249,13 +249,12 @@
     position:relative;
     background:var(--violet-deep);
     box-shadow:0 25px 50px -20px rgba(36,27,77,.35);
-    transform:scale(.82);
-    opacity:0;
-    transition:transform .5s cubic-bezier(.4,0,.2,1), opacity .5s ease;
-    pointer-events:none;
+    transform:scale(.86);
+    opacity:.65;
+    z-index:2;
+    transition:transform .3s ease, opacity .3s ease;
   }
-  .vc-slide.active{ transform:scale(1); opacity:1; z-index:3; pointer-events:auto; }
-  .vc-slide.adjacent{ transform:scale(.86); opacity:.65; z-index:2; }
+  .vc-slide.active{ transform:scale(1); opacity:1; z-index:3; }
   .vc-video{
     width:100%; height:100%; display:block; background:#000;
     object-fit:cover;
@@ -475,17 +474,14 @@
     <div class="video-carousel" id="videoCarousel">
       <div class="vc-track-wrap">
         <div class="vc-track" id="vcTrack">
-          <div class="vc-slide">
-            <video class="vc-video" src="assets/videos/testimonio-1.mp4" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
+          <div class="vc-slide adjacent" id="vcLeft">
+            <video class="vc-video" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
           </div>
-          <div class="vc-slide">
-            <video class="vc-video" src="assets/videos/testimonio-2.mp4" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
+          <div class="vc-slide active" id="vcCenter">
+            <video class="vc-video" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
           </div>
-          <div class="vc-slide">
-            <video class="vc-video" src="assets/videos/testimonio-3.mp4" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
-          </div>
-          <div class="vc-slide">
-            <video class="vc-video" src="assets/videos/testimonio-4.mp4" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
+          <div class="vc-slide adjacent" id="vcRight">
+            <video class="vc-video" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
           </div>
         </div>
       </div>
@@ -572,107 +568,64 @@
   toggle.addEventListener('click', () => links.classList.toggle('open'));
   links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
 
-  // Video testimonial carousel (stacked fan cards, true infinite loop)
+  // Video testimonial carousel — 3 fixed slots, content swapped by index (true infinite loop)
+  const testimonialSrcs = [
+    'assets/videos/testimonio-1.mp4',
+    'assets/videos/testimonio-2.mp4',
+    'assets/videos/testimonio-3.mp4',
+    'assets/videos/testimonio-4.mp4'
+  ];
+  const N = testimonialSrcs.length;
   const track = document.getElementById('vcTrack');
-  const trackWrap = document.querySelector('.vc-track-wrap');
-  const realSlides = Array.from(track.querySelectorAll('.vc-slide'));
-  const REAL = realSlides.length;
+  const leftVideo = document.querySelector('#vcLeft .vc-video');
+  const centerVideo = document.querySelector('#vcCenter .vc-video');
+  const rightVideo = document.querySelector('#vcRight .vc-video');
   const dotsWrap = document.getElementById('vcDots');
   const prevBtn = document.getElementById('vcPrev');
   const nextBtn = document.getElementById('vcNext');
+  let current = 0;
 
-  // Clone last slide to the front and first slide to the back, so the track
-  // can keep sliding in one direction and never has to "jump back" visually.
-  const lastClone = realSlides[REAL - 1].cloneNode(true);
-  const firstClone = realSlides[0].cloneNode(true);
-  lastClone.classList.add('clone');
-  firstClone.classList.add('clone');
-  track.insertBefore(lastClone, realSlides[0]);
-  track.appendChild(firstClone);
-
-  const extSlides = Array.from(track.children); // [cloneLast, real0..realN-1, cloneFirst]
-  const allVideos = track.querySelectorAll('.vc-video');
-
-  // dots represent the REAL slides only
-  realSlides.forEach((_, i) => {
+  for (let i = 0; i < N; i++) {
     const dot = document.createElement('button');
     dot.className = 'vc-dot' + (i === 0 ? ' active' : '');
     dot.setAttribute('aria-label', 'Ir al testimonio ' + (i + 1));
-    dot.addEventListener('click', () => goToReal(i));
+    dot.addEventListener('click', () => goTo(i));
     dotsWrap.appendChild(dot);
-  });
+  }
   const dots = dotsWrap.querySelectorAll('.vc-dot');
 
-  let visual = 1; // index within extSlides; 1..REAL map to the real slides
-
-  function realIndexFromVisual(v){
-    if (v <= 0) return REAL - 1;
-    if (v >= REAL + 1) return 0;
-    return v - 1;
-  }
-
-  function updateClasses(){
-    extSlides.forEach((s, i) => {
-      s.classList.remove('active', 'adjacent');
-      if (i === visual) s.classList.add('active');
-      else if (i === visual - 1 || i === visual + 1) s.classList.add('adjacent');
-    });
-    const cur = realIndexFromVisual(visual);
-    dots.forEach((d, i) => d.classList.toggle('active', i === cur));
-  }
-
-  function position(withTransition){
-    track.style.transition = withTransition ? '' : 'none';
-    const activeEl = extSlides[visual];
-    const wrapWidth = trackWrap.clientWidth;
-    const targetX = wrapWidth / 2 - (activeEl.offsetLeft + activeEl.offsetWidth / 2);
-    track.style.transform = `translateX(${targetX}px)`;
-    if (!withTransition) {
-      void track.offsetHeight; // force reflow so the transition stays disabled for this jump
-      track.style.transition = '';
+  function setSrc(videoEl, src){
+    if (videoEl.getAttribute('src') !== src) {
+      videoEl.pause();
+      videoEl.setAttribute('src', src);
     }
   }
 
-  function goNext(){
-    allVideos.forEach(v => v.pause());
-    visual++;
-    updateClasses();
-    position(true);
-  }
-  function goPrev(){
-    allVideos.forEach(v => v.pause());
-    visual--;
-    updateClasses();
-    position(true);
-  }
-  function goToReal(i){
-    allVideos.forEach(v => v.pause());
-    visual = i + 1;
-    updateClasses();
-    position(true);
+  function render(){
+    const leftIdx = (current - 1 + N) % N;
+    const rightIdx = (current + 1) % N;
+    setSrc(leftVideo, testimonialSrcs[leftIdx]);
+    setSrc(centerVideo, testimonialSrcs[current]);
+    setSrc(rightVideo, testimonialSrcs[rightIdx]);
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
   }
 
-  // when a transition into a cloned slide finishes, jump silently to the
-  // matching real slide at the same visual spot, so it always keeps moving forward
-  track.addEventListener('transitionend', (e) => {
-    if (e.propertyName !== 'transform') return;
-    if (visual === 0) {
-      visual = REAL;
-      updateClasses();
-      position(false);
-    } else if (visual === REAL + 1) {
-      visual = 1;
-      updateClasses();
-      position(false);
-    }
-  });
+  function change(newIndex){
+    [leftVideo, centerVideo, rightVideo].forEach(v => v.pause());
+    track.classList.add('vc-fade');
+    setTimeout(() => {
+      current = (newIndex + N) % N; // always wraps forward or backward, never breaks
+      render();
+      track.classList.remove('vc-fade');
+    }, 220);
+  }
 
-  prevBtn.addEventListener('click', goPrev);
-  nextBtn.addEventListener('click', goNext);
-  window.addEventListener('resize', () => position(false));
+  function goTo(i){ change(i); }
 
-  updateClasses();
-  position(false);
+  prevBtn.addEventListener('click', () => change(current - 1));
+  nextBtn.addEventListener('click', () => change(current + 1));
+
+  render(); // initial load
   window.addEventListener('resize', render);
   render();
 </script>
