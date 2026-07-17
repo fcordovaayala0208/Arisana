@@ -227,16 +227,42 @@
   .about-point p{ margin:0; font-size:14.5px; color:rgba(255,255,255,.7); }
   @media (max-width:900px){ .about .container{ grid-template-columns:1fr; } .about{ border-radius:24px; } }
 
-  /* ---------- Testimonials ---------- */
-  .testimonials-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
-  .t-card{ background:var(--white); border-radius:var(--radius); padding:30px; box-shadow:0 10px 30px -18px rgba(36,27,77,.15); }
-  .t-card .stars{ color:var(--teal-dark); font-size:15px; margin-bottom:14px; letter-spacing:2px; }
-  .t-card p{ font-size:15px; color:var(--text-soft); margin-bottom:20px; }
-  .t-card .who{ display:flex; align-items:center; gap:12px; }
-  .avatar{ width:40px; height:40px; border-radius:50%; background:var(--violet-soft); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--violet); font-family:'Fraunces',serif; }
-  .who b{ display:block; font-size:14px; }
-  .who span{ font-size:12.5px; color:var(--text-soft); }
-  @media (max-width:900px){ .testimonials-grid{ grid-template-columns:1fr; } }
+  /* ---------- Video testimonial carousel ---------- */
+  .video-carousel{
+    display:flex; align-items:center; gap:18px;
+    max-width:900px; margin:0 auto;
+  }
+  .vc-track-wrap{ overflow:hidden; border-radius:var(--radius); flex:1; }
+  .vc-track{
+    display:flex; transition:transform .45s cubic-bezier(.4,0,.2,1);
+  }
+  .vc-slide{
+    min-width:100%; display:flex; justify-content:center; align-items:center;
+    background:var(--violet-deep);
+  }
+  .vc-video{
+    width:100%; max-height:560px; display:block; background:#000;
+    object-fit:contain;
+  }
+  .vc-arrow{
+    flex-shrink:0; width:48px; height:48px; border-radius:50%; border:none;
+    background:var(--white); color:var(--violet); font-size:24px; cursor:pointer;
+    box-shadow:0 10px 24px -10px rgba(36,27,77,.35);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .2s ease, background .2s ease;
+  }
+  .vc-arrow:hover{ background:var(--teal-dark); color:var(--white); transform:scale(1.06); }
+  .vc-dots{ display:flex; justify-content:center; gap:10px; margin-top:22px; }
+  .vc-dot{
+    width:9px; height:9px; border-radius:50%; background:var(--violet-soft);
+    border:none; cursor:pointer; padding:0; transition:background .2s ease, transform .2s ease;
+  }
+  .vc-dot.active{ background:var(--teal-dark); transform:scale(1.3); }
+  @media (max-width:700px){
+    .video-carousel{ gap:10px; }
+    .vc-arrow{ width:38px; height:38px; font-size:20px; }
+    .vc-video{ max-height:440px; }
+  }
 
   /* ---------- Contact ---------- */
   .contact-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:stretch; }
@@ -424,24 +450,33 @@
     <div class="section-head">
       <div class="eyebrow">Testimonios</div>
       <h2>Lo que dicen las familias que confían en nosotros</h2>
+      <p>Escucha, en sus propias palabras, la experiencia de nuestros pacientes.</p>
     </div>
-    <div class="testimonials-grid">
-      <div class="t-card">
-        <div class="stars">★★★★★</div>
-        <p>"Me hice la ecografía 4D y la atención fue muy cálida, me explicaron cada detalle. Se nota la experiencia del equipo."</p>
-        <div class="who"><div class="avatar">M</div><div><b>Milagros R.</b><span>Paciente de obstetricia</span></div></div>
+
+    <div class="video-carousel" id="videoCarousel">
+      <button class="vc-arrow vc-prev" id="vcPrev" aria-label="Testimonio anterior">‹</button>
+
+      <div class="vc-track-wrap">
+        <div class="vc-track" id="vcTrack">
+          <div class="vc-slide">
+            <video class="vc-video" src="assets/videos/testimonio-1.mp4" playsinline controls preload="metadata"></video>
+          </div>
+          <div class="vc-slide">
+            <video class="vc-video" src="assets/videos/testimonio-2.mp4" playsinline controls preload="metadata"></video>
+          </div>
+          <div class="vc-slide">
+            <video class="vc-video" src="assets/videos/testimonio-3.mp4" playsinline controls preload="metadata"></video>
+          </div>
+          <div class="vc-slide">
+            <video class="vc-video" src="assets/videos/testimonio-4.mp4" playsinline controls preload="metadata"></video>
+          </div>
+        </div>
       </div>
-      <div class="t-card">
-        <div class="stars">★★★★★</div>
-        <p>"Llevo a mis hijos a Arisana Dental desde hace dos años. Siempre puntuales y muy pacientes con los niños."</p>
-        <div class="who"><div class="avatar">J</div><div><b>Jorge T.</b><span>Paciente de odontología</span></div></div>
-      </div>
-      <div class="t-card">
-        <div class="stars">★★★★★</div>
-        <p>"Fui por un tema de próstata y el trato del urólogo fue directo y profesional, sin vueltas. Totalmente recomendado."</p>
-        <div class="who"><div class="avatar">C</div><div><b>Carlos M.</b><span>Paciente de urología</span></div></div>
-      </div>
+
+      <button class="vc-arrow vc-next" id="vcNext" aria-label="Siguiente testimonio">›</button>
     </div>
+
+    <div class="vc-dots" id="vcDots"></div>
   </div>
 </section>
 
@@ -518,6 +553,34 @@
   const links = document.getElementById('navLinks');
   toggle.addEventListener('click', () => links.classList.toggle('open'));
   links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
+
+  // Video testimonial carousel
+  const track = document.getElementById('vcTrack');
+  const slides = track.querySelectorAll('.vc-slide');
+  const videos = track.querySelectorAll('.vc-video');
+  const dotsWrap = document.getElementById('vcDots');
+  const prevBtn = document.getElementById('vcPrev');
+  const nextBtn = document.getElementById('vcNext');
+  let current = 0;
+
+  slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'vc-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', 'Ir al testimonio ' + (i + 1));
+    dot.addEventListener('click', () => goTo(i));
+    dotsWrap.appendChild(dot);
+  });
+  const dots = dotsWrap.querySelectorAll('.vc-dot');
+
+  function goTo(index){
+    videos.forEach(v => v.pause());
+    current = (index + slides.length) % slides.length;
+    track.style.transform = `translateX(-${current * 100}%)`;
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+  }
+
+  prevBtn.addEventListener('click', () => goTo(current - 1));
+  nextBtn.addEventListener('click', () => goTo(current + 1));
 </script>
 
 </body>
