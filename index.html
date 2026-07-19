@@ -256,6 +256,7 @@
   }
   .vc-slide.active{ transform:scale(1); opacity:1; z-index:3; pointer-events:auto; }
   .vc-slide.adjacent{ transform:scale(.86); opacity:.65; z-index:2; }
+  .video-carousel.no-anim .vc-slide{ transition:none !important; }
   .vc-video{
     width:100%; height:100%; display:block; background:#000;
     object-fit:cover;
@@ -487,6 +488,9 @@
           <div class="vc-slide">
             <video class="vc-video" src="assets/videos/testimonio-4.mp4" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
           </div>
+          <div class="vc-slide">
+            <video class="vc-video" src="assets/videos/testimonio-5.mp4" playsinline controls controlsList="nodownload noremoteplayback" disablepictureinpicture oncontextmenu="return false" preload="metadata"></video>
+          </div>
         </div>
       </div>
 
@@ -582,18 +586,23 @@
   const nextBtn = document.getElementById('vcNext');
   const TRANSITION_MS = 500; // must match the .vc-track CSS transition duration
 
-  // Clone last slide to the front and first slide to the back, so the track
-  // can keep sliding in one direction and never has to "jump back" visually.
-  // Each clone keeps its own <video src>, so nothing ever reloads.
-  const lastClone = realSlides[REAL - 1].cloneNode(true);
-  const firstClone = realSlides[0].cloneNode(true);
-  lastClone.classList.add('clone');
-  firstClone.classList.add('clone');
-  track.insertBefore(lastClone, realSlides[0]);
-  track.appendChild(firstClone);
+  // Buffer of TWO clones on each side (not just one) so that even during the
+  // single boundary step, both left and right neighbours always exist —
+  // that missing neighbour was exactly what produced the blank/white gap.
+  // Each clone keeps its own fixed <video src>, so nothing ever reloads.
+  const cloneA = realSlides[REAL - 2].cloneNode(true); // second-to-last
+  const cloneB = realSlides[REAL - 1].cloneNode(true); // last
+  const cloneC = realSlides[0].cloneNode(true);        // first
+  const cloneD = realSlides[1].cloneNode(true);        // second
+  [cloneA, cloneB, cloneC, cloneD].forEach(c => c.classList.add('clone'));
+  track.insertBefore(cloneB, realSlides[0]);
+  track.insertBefore(cloneA, cloneB);
+  track.appendChild(cloneC);
+  track.appendChild(cloneD);
 
-  const extSlides = Array.from(track.children); // [cloneLast, real0..realN-1, cloneFirst]
+  const extSlides = Array.from(track.children); // [cloneA, cloneB, real0..realN-1, cloneC, cloneD]
   const allVideos = track.querySelectorAll('.vc-video');
+  const OFFSET = 2; // real index i lives at extSlides[i + OFFSET]
 
   // dots represent the REAL slides only
   realSlides.forEach((_, i) => {
@@ -605,14 +614,17 @@
   });
   const dots = dotsWrap.querySelectorAll('.vc-dot');
 
-  let visual = 1; // index within extSlides; 1..REAL map to the real slides
+  let visual = OFFSET; // index within extSlides; OFFSET..OFFSET+REAL-1 map to the real slides
   let busy = false;
   let jumpTimer = null;
 
   function realIndexFromVisual(v){
-    if (v <= 0) return REAL - 1;
-    if (v >= REAL + 1) return 0;
-    return v - 1;
+    const real = v - OFFSET;
+    return ((real % REAL) + REAL) % REAL;
+  }
+
+  function isBoundary(v){
+    return v < OFFSET || v > OFFSET + REAL - 1;
   }
 
   function updateClasses(){
@@ -642,14 +654,14 @@
   function scheduleBoundaryFix(){
     clearTimeout(jumpTimer);
     jumpTimer = setTimeout(() => {
-      if (visual === 0) {
-        visual = REAL;
+      if (isBoundary(visual)) {
+        const carousel = document.getElementById('videoCarousel');
+        carousel.classList.add('no-anim'); // freeze card fade/scale for this one instant swap
+        visual = realIndexFromVisual(visual) + OFFSET;
         updateClasses();
         position(false);
-      } else if (visual === REAL + 1) {
-        visual = 1;
-        updateClasses();
-        position(false);
+        void track.offsetHeight;
+        requestAnimationFrame(() => requestAnimationFrame(() => carousel.classList.remove('no-anim')));
       }
       busy = false;
     }, TRANSITION_MS + 30);
@@ -669,7 +681,7 @@
     if (busy) return;
     busy = true;
     allVideos.forEach(v => v.pause());
-    visual = i + 1;
+    visual = i + OFFSET;
     updateClasses();
     position(true);
     clearTimeout(jumpTimer);
